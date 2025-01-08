@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firestore Restore</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Firestore Restore</h1>
+        
+        <!-- Source Configuration -->
+        <div class="section">
+            <h2>Source Configuration</h2>
+            <div class="form-group">
+                <label for="serviceAccountKey">Service Account Key (Optional):</label>
+                <input type="text" id="serviceAccountKey" placeholder="Path to service account key JSON file">
+            </div>
+            <div class="form-group">
+                <label for="sourceProjectId">Source Project ID:</label>
+                <input type="text" id="sourceProjectId" placeholder="Enter source project ID">
+            </div>
+            <div class="form-group">
+                <label for="sourceDb">Source Database ID:</label>
+                <input type="text" id="sourceDb" placeholder="(default)">
+            </div>
+            <div class="form-group">
+                <label for="source">Source Type:</label>
+                <select id="source">
+                    <option value="gcs">Google Cloud Storage</option>
+                    <option value="pitr">Point in Time Recovery</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="backupSource">Backup Source:</label>
+                <input type="text" id="backupSource" placeholder="gs://[BUCKET_NAME]/[DIRECTORY]">
+                <button onclick="listBackups()">List Backups</button>
+            </div>
+        </div>
+
+        <!-- Destination Configuration -->
+        <div class="section">
+            <h2>Destination Configuration</h2>
+            <div class="form-group">
+                <label for="destProjectId">Destination Project ID:</label>
+                <input type="text" id="destProjectId" placeholder="Enter destination project ID">
+            </div>
+            <div class="form-group">
+                <label for="destDb">Destination Database ID:</label>
+                <input type="text" id="destDb" placeholder="(default)">
+                <button onclick="loadDestination().catch(error => showStatus('Error: ' + error, 'error'))">Load</button>
+            </div>
+        </div>
+
+        <!-- Backup List -->
+        <div id="backupListSection" class="section" style="display: none;">
+            <h2 id="backupListLabel">Available Backups:</h2>
+            <select id="backupList" size="5" style="width: 100%;" onchange="showRestoreOptions(this.value)">
+            </select>
+        </div>
+
+        <!-- Granularity Options -->
+        <div id="granularitySection" class="section" style="display: none;">
+            <h2>Restore Options</h2>
+            <div class="form-group">
+                <label for="granularity">Granularity:</label>
+                <select id="granularity" onchange="toggleGranularityInputs()">
+                    <option value="full">Full Database</option>
+                    <option value="collection">Collection</option>
+                    <option value="document">Document</option>
+                </select>
+            </div>
+            <div id="collectionSection" class="form-group" style="display: none;">
+                <label for="collectionId">Collection ID:</label>
+                <input type="text" id="collectionId" placeholder="Enter collection ID">
+            </div>
+            <div id="documentSection" class="form-group" style="display: none;">
+                <label for="documentId">Document ID:</label>
+                <select id="documentId" style="width: 100%;">
+                    <option value="">Select a document</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- User Email -->
+        <div class="section">
+            <div class="form-group">
+                <label for="userEmail">User Email:</label>
+                <input type="email" id="userEmail" placeholder="Enter your email">
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="section">
+            <button id="restoreButton" onclick="restore()" style="display: none;">Start Restore</button>
+            <button id="cancelButton" onclick="cancelRestore()" style="display: none;">Cancel Restore</button>
+        </div>
+
+        <!-- Status Section -->
+        <div id="status" class="status-container">
+            <div class="status-header" onclick="toggleStatusContainer(this.parentElement)">
+                <h2>Status</h2>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="status-messages"></div>
+        </div>
+
+        <!-- Explorer Section -->
+        <div id="explorerSection" class="section" style="display: none;">
+            <h2>Database Explorer</h2>
+            <div class="explorer-container">
+                <div class="source-explorer">
+                    <h3>Source Database</h3>
+                    <p>Project: <span id="sourceProject"></span></p>
+                    <p>Database: <span id="sourceDb"></span></p>
+                    <div id="sourceTree" class="tree-view"></div>
+                </div>
+                <div class="destination-explorer">
+                    <h3>Destination Database</h3>
+                    <p>Project: <span id="destProject"></span></p>
+                    <p>Database: <span id="destDbInfo"></span></p>
+                    <div id="destTree" class="tree-view"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+    <script src="/static/explorer.js"></script>
+</body>
+</html> 

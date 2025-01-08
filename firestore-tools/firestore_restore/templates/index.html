@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firestore Restore</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/explorer.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Firestore Restore</h1>
+        
+        <div class="form-group">
+            <label for="userEmail">Your Email:</label>
+            <input type="email" id="userEmail" placeholder="your.email@example.com" required>
+            <small>Used for setting up permissions</small>
+        </div>
+
+        <!-- Source Configuration -->
+        <h2>Source Configuration</h2>
+        <div class="form-group">
+            <label for="sourceServiceAccountKey">Source Service Account Key (Optional):</label>
+            <input type="text" id="sourceServiceAccountKey" placeholder="Path to source service account key JSON file">
+            <small>If provided, this key will be used for source operations instead of GOOGLE_APPLICATION_CREDENTIALS</small>
+        </div>
+
+        <div class="form-group">
+            <label for="sourceProjectId">Source Project ID:</label>
+            <input type="text" id="sourceProjectId" required>
+        </div>
+
+        <div class="form-group">
+            <label for="sourceDb">Source Database ID:</label>
+            <input type="text" id="sourceDb" placeholder="(default)">
+            <small>The database to restore from</small>
+        </div>
+
+        <div class="form-group">
+            <label for="source">Backup Source:</label>
+            <select id="source">
+                <option value="gcs">Google Cloud Storage</option>
+                <option value="pitr">Point in Time Recovery</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="backupSource">Backup Source:</label>
+            <input type="text" id="backupSource" name="backupSource" placeholder="gs://[BUCKET_NAME]" required>
+            <small id="backupSourceHelp" class="form-text">
+                For GCS: Enter the bucket path (e.g., gs://my-bucket) and click "List Backups" to see available backups.<br>
+                For PITR: Enter the timestamp in YYYY-MM-DDTHH:MM:SSZ format.
+            </small>
+        </div>
+
+        <div class="form-group">
+            <button type="button" onclick="listBackups()" class="list-backups-btn">List Backups</button>
+        </div>
+
+        <!-- Destination Configuration -->
+        <h2>Destination Configuration</h2>
+        <div class="form-group">
+            <label for="destProjectId">Destination Project ID:</label>
+            <input type="text" id="destProjectId" required>
+            <label for="destDb">Destination Database ID:</label>
+            <input type="text" id="destDb" value="korl-backup-db" placeholder="korl-backup-db">
+            <button onclick="loadDestination().catch(error => showStatus('Error: ' + error, 'error'))">Load</button>
+            <label for="destServiceAccountKey">Destination Service Account Key (Optional):</label>
+            <input type="text" id="destServiceAccountKey" placeholder="Path to service account key JSON file">
+        </div>
+
+        <div id="backupListSection" class="form-group" style="display: none;">
+            <label id="backupListLabel" for="backupList">Available Backups:</label>
+            <select id="backupList" size="5" onchange="showRestoreOptions(this.value)">
+            </select>
+            <small class="form-text">Select a backup from the list above to proceed with the restore.</small>
+        </div>
+
+        <div id="granularitySection" class="form-group" style="display: none;">
+            <label for="granularity">Restore Granularity:</label>
+            <select id="granularity" onchange="toggleGranularityInputs()">
+                <option value="full">Full Database</option>
+                <option value="collection">Single Collection</option>
+                <option value="document">Single Document</option>
+            </select>
+        </div>
+
+        <div id="collectionSection" class="form-group" style="display: none;">
+            <label for="collectionId">Collection ID:</label>
+            <input type="text" id="collectionId">
+        </div>
+
+        <div id="documentSection" class="form-group" style="display: none;">
+            <label for="documentId">Document:</label>
+            <select id="documentId" class="document-select">
+                <option value="">Select a document</option>
+            </select>
+            <small>Select a document to restore</small>
+        </div>
+
+        <div class="button-group">
+            <button id="restoreButton" onclick="restore()" style="display: none;">Start Restore</button>
+            <button id="cancelButton" onclick="cancelRestore()" style="display: none;" class="cancel-button">Cancel Restore</button>
+            <button id="showExplorerButton" onclick="showExplorer()" class="explorer-button" style="display: none;">Open Database Explorer</button>
+        </div>
+
+        <!-- Database Explorer Section -->
+        <div id="explorerSection" style="display: none;">
+            <h2>Database Explorer</h2>
+            <div class="explorer-container">
+                <!-- Source Database Panel -->
+                <div class="database-panel">
+                    <h3>Source Database</h3>
+                    <div class="database-info">
+                        <div>Project: <span id="sourceProject"></span></div>
+                        <div>Database: <span id="sourceDb"></span></div>
+                    </div>
+                    <div class="tree-container">
+                        <div class="tree-toolbar">
+                            <button class="expand-all">Expand All</button>
+                            <button class="collapse-all">Collapse All</button>
+                            <button class="refresh">Refresh</button>
+                        </div>
+                        <div class="query-interface">
+                            <div class="query-form">
+                                <input type="text" class="query-field" placeholder="Field name (e.g. companyId)">
+                                <select class="query-operator">
+                                    <option value="==">==</option>
+                                    <option value="!=">!=</option>
+                                    <option value=">">></option>
+                                    <option value=">=">>=</option>
+                                    <option value="<"><</option>
+                                    <option value="<="><=</option>
+                                    <option value="array-contains">array-contains</option>
+                                </select>
+                                <input type="text" class="query-value" placeholder="Value">
+                                <button class="query-submit">Search</button>
+                            </div>
+                            <small class="query-help">Search for documents across all collections or within a selected collection</small>
+                        </div>
+                        <div id="sourceTree" class="tree-view"></div>
+                    </div>
+                </div>
+
+                <!-- Transfer Controls -->
+                <div class="transfer-controls">
+                    <div class="transfer-options">
+                        <label><input type="checkbox" id="includeSubcollections" checked> Include Subcollections</label>
+                        <label><input type="checkbox" id="overwriteExisting"> Overwrite Existing</label>
+                    </div>
+                    <button id="copyRight" class="transfer-button" disabled title="Copy to destination">→</button>
+                    <button id="copyLeft" class="transfer-button" disabled title="Copy to source">←</button>
+                    <div class="transfer-status"></div>
+                </div>
+
+                <!-- Destination Database Panel -->
+                <div class="database-panel">
+                    <h3>Destination Database</h3>
+                    <div class="database-info">
+                        <div>Project: <span id="destProject"></span></div>
+                        <div>Database: <span id="destDbInfo"></span></div>
+                    </div>
+                    <div class="tree-container">
+                        <div class="tree-toolbar">
+                            <button class="expand-all">Expand All</button>
+                            <button class="collapse-all">Collapse All</button>
+                            <button class="refresh">Refresh</button>
+                        </div>
+                        <div id="destTree" class="tree-view"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Document Preview Panel -->
+            <div id="previewPanel" class="preview-panel" style="display: none;">
+                <div class="preview-header">
+                    <h3>Document Preview</h3>
+                    <button class="close-preview">×</button>
+                </div>
+                <div class="preview-content">
+                    <pre id="documentPreview"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status section -->
+        <div id="status" class="status-container">
+            <div class="status-header" onclick="toggleStatusContainer(this.parentElement)">
+                <h3>Status Messages</h3>
+                <span class="collapse-toggle">▼</span>
+            </div>
+            <div class="status-messages">
+                <!-- Status messages will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/explorer.js"></script>
+    <script src="/static/script.js"></script>
+    <script>
+        // Initialize explorer after both scripts are loaded
+        const explorer = new DatabaseExplorer();
+    </script>
+</body>
+</html> 

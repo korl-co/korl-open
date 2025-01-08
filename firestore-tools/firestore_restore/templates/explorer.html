@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firestore Database Explorer</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/explorer.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Firestore Database Explorer</h1>
+        
+        <div class="explorer-container">
+            <!-- Source Database (Left side) -->
+            <div class="database-panel">
+                <h2>Source Database</h2>
+                <div class="database-info">
+                    <div>Project: <span id="sourceProject"></span></div>
+                    <div>Database: <span id="sourceDb"></span></div>
+                </div>
+                <div class="tree-container">
+                    <div id="sourceTree" class="tree-view"></div>
+                </div>
+            </div>
+
+            <!-- Transfer Controls (Middle) -->
+            <div class="transfer-controls">
+                <button id="copyRight" disabled title="Copy to destination">→</button>
+                <button id="copyLeft" disabled title="Copy to source">←</button>
+            </div>
+
+            <!-- Destination Database (Right side) -->
+            <div class="database-panel">
+                <h2>Destination Database</h2>
+                <div class="database-inputs">
+                    <input type="text" id="destProjectId" placeholder="Project ID">
+                    <input type="text" id="destDb" placeholder="Database ID (default)">
+                    <button onclick="loadDestination()">Load</button>
+                </div>
+                <div class="tree-container">
+                    <div id="destTree" class="tree-view"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="status" class="status"></div>
+        <div id="progressBar" class="progress-bar" style="display: none;">
+            <div class="progress"></div>
+        </div>
+    </div>
+
+    <script src="/static/explorer.js"></script>
+</body>
+</html> 
